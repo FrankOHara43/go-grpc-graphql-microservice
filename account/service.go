@@ -2,8 +2,6 @@ package account
 
 import (
 	"context"
-	"fmt"
-	"net"
 
 	"github.com/segmentio/ksuid"
 )
@@ -23,7 +21,7 @@ type accountService struct {
 	 repository Repository
 }
 
-func newService(r Repository) Service {
+func NewService(r Repository) Service {
 	return &accountService{r}
 }
 
@@ -32,10 +30,10 @@ func (s *accountService) PostAccount(ctx context.Context, name string) (*Account
 		Name: name,
 		ID: ksuid.New().String(),
 	}
-	if err := s.repository.PutAccount(ctx, *a); err != nil {
+	if err := s.repository.PutAccount(ctx, a); err != nil {
 		return nil, err
 	}
-	return a, nil
+	return &a, nil
 }
 func (s *accountService) GetAccount(ctx context.Context, id string) (*Account, error) {
 	return s.repository.GetAccountById(ctx, id)

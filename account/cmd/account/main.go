@@ -6,7 +6,6 @@ import (
 
 	"github.com/FrankOHara43/go-grpc-microservice/account"
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/tools/go/analysis/passes/defers"
 	"github.com/tinrab/retry"
 )
 
@@ -21,7 +20,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var r account.Respository
+	var r account.Repository
 	retry.ForeverSleep(2*time.Second, func(_ int)(err error){
 		r, err =account.NewPostgresRepository(cfg.DatabaseURL)
 		if err != nil {
@@ -29,7 +28,7 @@ func main() {
 		}
 		return 
 	})
-	defer r.close()
+	defer r.Close()
 	log.Println("Listening on port 8080...")
 	s := account.NewService(r)
 	log.Fatal(account.ListenGRPC(s, 8080))
