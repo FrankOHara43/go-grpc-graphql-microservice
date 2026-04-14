@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/FrankOHara43/go-grpc-microservice/catalog"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/tinrab/retry"
 )
 
@@ -14,13 +15,13 @@ type Config struct {
 
 func main() {
 	var cfg Config
-	env := envconfig.Process("", &cfg)
-	if env != nil {
+	err := envconfig.Process("", &cfg)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	var r.catalog.Repository
-    retry.ForeverSleep(2*time.Second, func(_ int) (err error) {
+	var r catalog.Repository
+	retry.ForeverSleep(2*time.Second, func(_ int) (err error) {
 		r, err = catalog.NewElasticRepository(cfg.DatabaseURL)
 		if err != nil {
 			log.Println(err)

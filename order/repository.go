@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 type Repository interface {
 	Close()
 	PutOrder(ctx context.Context, o Order) error
-	GetOrderForAccount(ctx context.Context, accountID string) ([]order, error)
+	GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error)
 }
 
 type postgresRepository struct {
@@ -34,41 +34,40 @@ func (r *postgresRepository) Close() {
 }
 
 func (r *postgresRepository) PutOrder(ctx context.Context, o Order) error {
-	tx, err := r.db.Begin(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return error
+		return err
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-		err = tx.Commit()
-	}()
-	tx.ExecContext(
+	if _, err = tx.ExecContext(
 		ctx,
 		"INSERT INTO orders(id, created_at, account_id, total_price) VALUES($1, $2, $3, $4)",
 		o.ID,
 		o.CreatedAt,
 		o.AccountID,
 		o.TotalPrice,
-	)
-	if err != nil {
-		return
+	); err != nil {
+		tx.Rollback()
+		return err
 	}
-	stmt, _ := tx.PrepareContext(ctx, pq.CopyIn("order_products", "order_id", "product_id", "quantity"))
+
 	for _, p := range o.Products {
-		_, err = stmt.ExecContext(ctx, o.ID, p.ID, p.quantity)
+		_, err = tx.ExecContext(
+			ctx,
+			"INSERT INTO order_products(order_id, product_id, quantity) VALUES($1, $2, $3)",
+			o.ID,
+			p.ID,
+			p.Quantity,
+		)
 		if err != nil {
-			return
+			tx.Rollback()
+			return err
 		}
 	}
-	_, err = stmt.ExecContext(ctx)
-	if err != nil {
-		return
+
+	if err = tx.Commit(); err != nil {
+		return err
 	}
-	stmt.Close()
-	return
+	return nil
 }
 
 func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error) {
@@ -94,21 +93,22 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 
 	orders := []Order{}
 	lastOrder := &Order{}
-	orderedProduct := &OrderedProduct{}
-	products := []OrderedProduct{}
 
 	for rows.Next() {
+		currentOrder := &Order{}
+		orderedProduct := &OrderedProduct{}
 		if err = rows.Scan(
-			&order.ID,
-			&order.CreatedAt,
-			&order.AccountID,
-			&order.TotalPrice,
+			&currentOrder.ID,
+			&currentOrder.CreatedAt,
+			&currentOrder.AccountID,
+			&currentOrder.TotalPrice,
 			&orderedProduct.ID,
 			&orderedProduct.Quantity,
 		); err != nil {
 			return nil, err
 		}
-		if lastOrder.ID != "" && lastOrder.ID != order.ID {
+
+		if lastOrder.ID != "" && lastOrder.ID != currentOrder.ID {
 			newOrder := Order{
 				ID:         lastOrder.ID,
 				AccountID:  lastOrder.AccountID,
@@ -117,15 +117,20 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 				Products:   lastOrder.Products,
 			}
 			orders = append(orders, newOrder)
-			products = []OrderedProduct{}
+			lastOrder = &Order{}
 		}
-		products = append(products, OrderedProduct{
+
+		lastOrder.ID = currentOrder.ID
+		lastOrder.AccountID = currentOrder.AccountID
+		lastOrder.CreatedAt = currentOrder.CreatedAt
+		lastOrder.TotalPrice = currentOrder.TotalPrice
+		lastOrder.Products = append(lastOrder.Products, OrderedProduct{
 			ID:       orderedProduct.ID,
 			Quantity: orderedProduct.Quantity,
 		})
-		*lastOrder = *order
 	}
-	if lastOrder != nil {
+
+	if lastOrder.ID != "" {
 		newOrder := Order{
 			ID:         lastOrder.ID,
 			AccountID:  lastOrder.AccountID,

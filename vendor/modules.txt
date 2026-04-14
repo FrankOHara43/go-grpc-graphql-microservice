@@ -10,7 +10,6 @@ github.com/99designs/gqlgen/graphql/handler/lru
 github.com/99designs/gqlgen/graphql/handler/transport
 github.com/99designs/gqlgen/graphql/introspection
 github.com/99designs/gqlgen/graphql/playground
-github.com/99designs/gqlgen/handler
 # github.com/agnivade/levenshtein v1.2.1
 ## explicit; go 1.21
 github.com/agnivade/levenshtein
@@ -32,6 +31,11 @@ github.com/hashicorp/golang-lru/v2/simplelru
 # github.com/kelseyhightower/envconfig v1.4.0
 ## explicit
 github.com/kelseyhightower/envconfig
+# github.com/lib/pq v1.10.9
+## explicit; go 1.13
+github.com/lib/pq
+github.com/lib/pq/oid
+github.com/lib/pq/scram
 # github.com/mailru/easyjson v0.7.1
 ## explicit; go 1.12
 github.com/mailru/easyjson

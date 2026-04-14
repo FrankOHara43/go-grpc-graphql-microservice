@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	_ "github.com/lib/pq"
 )
 
 type Repository interface {
@@ -82,4 +83,3 @@ func (r *postgresRepository) ListAccounts(ctx context.Context, skip uint64, take
 
 	return accounts, nil
 }
-
